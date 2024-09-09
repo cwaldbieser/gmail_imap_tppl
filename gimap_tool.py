@@ -7,6 +7,7 @@ from pathlib import Path
 import google.auth.transport.requests
 from google.oauth2 import service_account
 from imap_tools import MailBox
+from imap_tools.utils import quote as quote_imap_string
 from rich.console import Console
 from rich.table import Table
 
@@ -33,7 +34,12 @@ def main(args):
         headers_only = False
         attachment_folder_path = Path(attachment_folder)
     with MailBox("imap.gmail.com").xoauth2(subject, access_token) as mailbox:
-        for msg in mailbox.fetch(headers_only=headers_only, bulk=100, mark_seen=False):
+        criteria = "ALL"
+        if args.criteria is not None:
+            criteria = f"X-GM-RAW {quote_imap_string(args.criteria)}"
+        for msg in mailbox.fetch(
+            criteria=criteria, headers_only=headers_only, bulk=100, mark_seen=False
+        ):
             messages.append(msg)
             if attachment_folder is not None:
                 for attachment in msg.attachments:
@@ -84,11 +90,11 @@ if __name__ == "__main__":
         "--credentials",
         type=argparse.FileType("r"),
         action="store",
-        help="Credentials file in JSON format.")
+        help="Credentials file in JSON format.",
+    )
     parser.add_argument(
-        "--subject",
-        action="store",
-        help="Subject of credentials different from EMAIL.")
+        "--subject", action="store", help="Subject of credentials different from EMAIL."
+    )
     parser.add_argument(
         "-a",
         "--attachment-folder",
@@ -96,5 +102,6 @@ if __name__ == "__main__":
         metavar="FOLDER",
         help="Download attachments to FOLDER.",
     )
+    parser.add_argument("--criteria", action="store", help="GMail search criteria.")
     args = parser.parse_args()
     main(args)
