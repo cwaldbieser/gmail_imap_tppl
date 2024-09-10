@@ -7,7 +7,7 @@ from pathlib import Path
 
 import google.auth.transport.requests
 from google.oauth2 import service_account
-from imap_tools import MailBox
+from imap_tools import MailBox, A
 from imap_tools.utils import quote as quote_imap_string
 from rich.console import Console
 from rich.table import Table
@@ -41,7 +41,9 @@ def main(args):
         if args.folder is not None:
             mailbox.folder.set(args.folder)
         criteria = "ALL"
-        if args.criteria is not None:
+        if args.uid is not None:
+            criteria = A(uid=args.uid)
+        elif args.criteria is not None:
             criteria = f"X-GM-RAW {quote_imap_string(args.criteria)}"
         for msg in mailbox.fetch(
             criteria=criteria, headers_only=headers_only, bulk=100, mark_seen=False
@@ -125,6 +127,11 @@ if __name__ == "__main__":
         metavar="FOLDER",
         help="Download attachments to FOLDER.",
     )
+    parser.add_argument(
+        "-u",
+        "--uid",
+        action="append",
+        help="Specifcy specific UIDs of emails to fetch.")
     parser.add_argument("--criteria", action="store", help="GMail search criteria.")
     args = parser.parse_args()
     main(args)
