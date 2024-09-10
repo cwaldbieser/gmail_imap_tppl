@@ -3,11 +3,12 @@
 import argparse
 import json
 import sys
+from email.policy import default as default_policy
 from pathlib import Path
 
 import google.auth.transport.requests
 from google.oauth2 import service_account
-from imap_tools import MailBox, A
+from imap_tools import A, MailBox
 from imap_tools.utils import quote as quote_imap_string
 from rich.console import Console
 from rich.table import Table
@@ -34,6 +35,16 @@ def main(args):
     if attachment_folder is not None:
         headers_only = False
         attachment_folder_path = Path(attachment_folder)
+    email_folder = args.email_folder
+    if email_folder is not None:
+        headers_only = False
+        email_folder_path = Path(email_folder)
+    show_text = args.show_text
+    if show_text:
+        headers_only = False
+    show_html = args.show_html
+    if show_html:
+        headers_only = False
     with MailBox("imap.gmail.com").xoauth2(subject, access_token) as mailbox:
         if args.list_folders:
             list_folders(mailbox)
@@ -54,8 +65,23 @@ def main(args):
                     fname = attachment_folder_path / Path(attachment.filename).name
                     with open(fname, "wb") as f:
                         f.write(attachment.payload)
+            if email_folder is not None:
+                fname = email_folder_path / f"{msg.uid}.eml"
+                with open(fname, "w") as f:
+                    f.write(msg.obj.as_string(policy=default_policy))
+            if show_text:
+                print(f"== Message {msg.uid} text ==")
+                print(msg.text)
+                print("== end message ==")
+                print("")
+            if show_html:
+                print(f"== Message {msg.uid} html ==")
+                print(msg.html)
+                print("== end message ==")
+                print("")
 
-    display_message_summaries(messages)
+    if not args.no_summary:
+        display_message_summaries(messages)
 
 
 def list_folders(mailbox):
@@ -128,10 +154,30 @@ if __name__ == "__main__":
         help="Download attachments to FOLDER.",
     )
     parser.add_argument(
+        "-e",
+        "--email-folder",
+        action="store",
+        metavar="FOLDER",
+        help="Download email to FOLDER.",
+    )
+    parser.add_argument(
+        "-t",
+        "--show-text",
+        action="store_true",
+        help="Show email text.")
+    parser.add_argument(
+        "--show-html",
+        action="store_true",
+        help="show email html.")
+    parser.add_argument(
         "-u",
         "--uid",
         action="append",
         help="Specifcy specific UIDs of emails to fetch.")
+    parser.add_argument(
+        "--no-summary",
+        action="store_true",
+        help="Suppress message summary.")
     parser.add_argument("--criteria", action="store", help="GMail search criteria.")
     args = parser.parse_args()
     main(args)
