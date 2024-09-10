@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import google.auth.transport.requests
@@ -34,6 +35,11 @@ def main(args):
         headers_only = False
         attachment_folder_path = Path(attachment_folder)
     with MailBox("imap.gmail.com").xoauth2(subject, access_token) as mailbox:
+        if args.list_folders:
+            list_folders(mailbox)
+            sys.exit(0)
+        if args.folder is not None:
+            mailbox.folder.set(args.folder)
         criteria = "ALL"
         if args.criteria is not None:
             criteria = f"X-GM-RAW {quote_imap_string(args.criteria)}"
@@ -48,6 +54,14 @@ def main(args):
                         f.write(attachment.payload)
 
     display_message_summaries(messages)
+
+
+def list_folders(mailbox):
+    """
+    List folders.
+    """
+    for folder in mailbox.folder.list():
+        print(folder.name)
 
 
 def display_message_summaries(messages):
@@ -94,6 +108,15 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--subject", action="store", help="Subject of credentials different from EMAIL."
+    )
+    parser.add_argument(
+        "-f", "--folder", action="store", help="Switch to folder FOLDER."
+    )
+    parser.add_argument(
+        "-l",
+        "--list-folders",
+        action="store_true",
+        help="List all the folders for the mailbox and exit.",
     )
     parser.add_argument(
         "-a",
