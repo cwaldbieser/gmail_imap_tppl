@@ -8,7 +8,7 @@ from pathlib import Path
 
 import google.auth.transport.requests
 from google.oauth2 import service_account
-from imap_tools import A, MailBox
+from imap_tools import A, MailBox, MailMessage
 from imap_tools.utils import quote as quote_imap_string
 from rich.console import Console
 from rich.table import Table
@@ -49,6 +49,9 @@ def main(args):
         if args.list_folders:
             list_folders(mailbox)
             sys.exit(0)
+        if args.append is not None:
+            append_messages(mailbox, args.append, args.folder)
+            sys.exit(0)
         if args.folder is not None:
             mailbox.folder.set(args.folder)
         criteria = "ALL"
@@ -82,6 +85,19 @@ def main(args):
 
     if not args.no_summary:
         display_message_summaries(messages)
+
+
+def append_messages(mailbox, paths, folder):
+    """
+    Append messages to folder.
+    """
+    if folder is None:
+        folder = "INBOX"
+    for fname in paths:
+        with open(fname, "rb") as f:
+            data = f.read()
+            msg = MailMessage.from_bytes(data)
+        mailbox.append(msg, folder)
 
 
 def list_folders(mailbox):
@@ -161,23 +177,25 @@ if __name__ == "__main__":
         help="Download email to FOLDER.",
     )
     parser.add_argument(
-        "-t",
-        "--show-text",
-        action="store_true",
-        help="Show email text.")
-    parser.add_argument(
-        "--show-html",
-        action="store_true",
-        help="show email html.")
+        "-t", "--show-text", action="store_true", help="Show email text."
+    )
+    parser.add_argument("--show-html", action="store_true", help="show email html.")
     parser.add_argument(
         "-u",
         "--uid",
         action="append",
-        help="Specifcy specific UIDs of emails to fetch.")
+        help="Specifcy specific UIDs of emails to fetch.",
+    )
     parser.add_argument(
-        "--no-summary",
-        action="store_true",
-        help="Suppress message summary.")
+        "--append",
+        action="store",
+        nargs="+",
+        metavar="FILE",
+        help="Upload messages to the folder.",
+    )
+    parser.add_argument(
+        "--no-summary", action="store_true", help="Suppress message summary."
+    )
     parser.add_argument("--criteria", action="store", help="GMail search criteria.")
     args = parser.parse_args()
     main(args)
